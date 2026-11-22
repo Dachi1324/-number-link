@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NUMBER LINK</title>
+<style>
+:root{--bg:#f4f6fb;--card:#fff;--ink:#20263a;--muted:#69738b;--accent:#6257d9;--accent2:#e9e7ff;--line:#e4e7f0;--good:#198754}
+*{box-sizing:border-box}body{margin:0;background:linear-gradient(145deg,#f5f7ff,#eef1fa);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--ink)}
+main{max-width:760px;margin:auto;padding:22px 16px 48px}.brand{text-align:center;margin:12px 0 22px}.brand h1{letter-spacing:.12em;margin:0;font-size:clamp(27px,6vw,40px)}.brand p{margin:6px 0;color:var(--muted)}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:20px;margin:14px 0;box-shadow:0 8px 28px #29345a0a}
+h2{font-size:19px;margin:0 0 14px}h3{font-size:16px;margin:0 0 8px}.muted{color:var(--muted);font-size:14px}.row{display:flex;gap:10px;flex-wrap:wrap}.row>*{flex:1}
+button,input,textarea,select{font:inherit}button{border:0;border-radius:12px;background:var(--accent);color:#fff;padding:13px 16px;font-weight:700;cursor:pointer}button.secondary{background:var(--accent2);color:var(--accent)}button.ghost{background:#f0f2f8;color:var(--ink)}button:disabled{opacity:.45;cursor:not-allowed}
+input,textarea,select{width:100%;padding:12px;border:1px solid var(--line);border-radius:11px;background:#fff;color:var(--ink);margin:5px 0 12px}textarea{min-height:76px;resize:vertical}label{font-size:14px;font-weight:650}
+.hidden{display:none!important}.pill{display:inline-block;border-radius:99px;background:var(--accent2);color:var(--accent);padding:5px 10px;font-size:12px;font-weight:700}
+.big-number{font-size:clamp(56px,16vw,90px);font-weight:850;text-align:center;color:var(--accent);line-height:1.1;margin:16px 0}.center{text-align:center}
+.player-list{display:flex;gap:8px;flex-wrap:wrap}.player{padding:8px 12px;background:#f1f3f9;border-radius:10px;font-size:14px}
+.card{border:1px solid var(--line);border-radius:14px;padding:14px;margin:8px 0;background:#fff}
+.answer-row{display:grid;grid-template-columns:52px 1fr;gap:12px;align-items:center;padding:12px;border-bottom:1px solid var(--line)}
+.answer-row:last-child{border:0}.num{font-size:22px;font-weight:800;color:var(--accent);text-align:center}
+.notice{background:#fff8e6;border:1px solid #f1dfaa;padding:12px;border-radius:12px;font-size:13px;color:#6e5718}
+footer{text-align:center;color:var(--muted);font-size:12px;margin-top:24px}
+@media(max-width:480px){main{padding:14px 12px 32px}.panel{padding:16px;border-radius:16px}.row.stack{display:block}.row.stack>*{width:100%;margin-bottom:8px}}
+</style>
+</head>
+<body>
+<main>
+  <header class="brand"><h1>NUMBER LINK</h1><p>みんなの感覚をつなげよう。</p><span class="pill">数字は最後まで秘密</span></header>
+
+  <section id="home" class="panel">
+    <h2>遊び方を選ぼう</h2>
+    <p class="muted">数字は1〜100。全員の回答がそろったら、数字と回答をまとめて公開します。</p>
+    <div class="row stack">
+      <button onclick="startSetup('pass')">スマホ1台で遊ぶ</button>
+      <button class="secondary" onclick="showOnlineInfo()">URLで友達と遊ぶ（オンライン）</button>
+    </div>
+    <div id="onlineInfo" class="notice hidden" style="margin-top:14px">
+      <b>オンラインモードについて</b><br>複数のスマホで同じ部屋を使うには、Firebaseなどの共有サーバー設定が必要です。この試作版ではまだオンライン接続は有効化していません。画面・ゲームルールは実装済みで、接続設定を追加できる構成にしています。
+    </div>
+  </section>
+
+  <section id="setup" class="panel hidden">
+    <h2>ゲームの準備</h2>
+    <label>プレイヤー名（1行に1人）</label>
+    <textarea id="names">プレイヤーA
+プレイヤーB
+プレイヤーC
+プレイヤーD</textarea>
+    <label>お題</label>
+    <select id="topicSelect" onchange="syncTopic()"></select>
+    <textarea id="customTopic" placeholder="オリジナルのお題を入力"></textarea>
+    <div class="row">
+      <button class="secondary" onclick="addTopic()">お題を追加</button>
+      <button onclick="beginGame()">ゲーム開始</button>
+    </div>
+    <p class="muted">追加したお題はこのブラウザに保存されます。</p>
+    <button class="ghost" onclick="goHome()">戻る</button>
+  </section>
+
+  <section id="deal" class="panel hidden">
+    <h2>数字カードを確認</h2>
+    <p class="muted center">スマホを順番に回してください。自分の名前を確認してから数字を表示します。</p>
+    <div class="center"><span class="pill" id="dealProgress"></span><h3 id="dealName" style="margin-top:14px"></h3></div>
+    <div id="numberCover" class="card center">
+      <p class="muted">ほかの人に見られないようにしてね</p>
+      <button onclick="revealNumber()">数字を表示する</button>
+    </div>
+    <div id="numberShown" class="card hidden center">
+      <div class="muted">あなたの数字</div><div class="big-number" id="privateNumber"></div>
+      <p class="muted">数字を覚えたら、次の人にスマホを渡そう。</p>
+      <button onclick="nextDeal()">確認した・次の人へ</button>
+    </div>
+  </section>
+
+  <section id="answer" class="panel hidden">
+    <h2>お題に合わせて回答しよう</h2>
+    <div class="card center"><div class="muted">今回のお題</div><h2 id="topicDisplay" style="margin:8px 0 0"></h2></div>
+    <p class="muted center">数字の大きさに合うと思う回答を考えてね。数字はまだ公開されません。</p>
+    <div id="answerInputs"></div>
+    <button style="width:100%" onclick="submitAnswers()">回答を確定して結果を見る</button>
+  </section>
+
+  <section id="result" class="panel hidden">
+    <h2>みんなの結果</h2>
+    <div class="card center"><div class="muted">お題</div><h2 id="resultTopic"></h2></div>
+    <p class="muted">数字の小さい順に並んでいます。</p>
+    <div id="results"></div>
+    <div class="row stack" style="margin-top:16px">
+      <button onclick="startSetup('pass')">もう一度遊ぶ</button>
+      <button class="secondary" onclick="goHome()">ホームへ</button>
+    </div>
+  </section>
+  <footer>NUMBER LINK · オリジナルの試作ゲーム</footer>
+</main>
+<script>
+const defaultTopics=[
+"テンションが上がること","言われたらうれしい言葉","一度は経験してみたいこと",
+"無人島に持っていきたいもの","強いと思う動物","好きな給食メニュー",
+"休日にしたいこと","もらってうれしいプレゼント","人生で大切だと思うもの"
+];
+let topics=JSON.parse(localStorage.getItem('nl_topics')||'null')||defaultTopics.slice();
+let players=[],numbers=[],dealIndex=0,mode='pass',currentTopic='';
+const screens=['home','setup','deal','answer','result'];
+function show(id){screens.forEach(s=>document.getElementById(s).classList.toggle('hidden',s!==id))}
+function goHome(){show('home')}
+function showOnlineInfo(){document.getElementById('onlineInfo').classList.toggle('hidden')}
+function refreshTopics(){
+ const sel=document.getElementById('topicSelect');sel.innerHTML='';
+ topics.forEach((t,i)=>{let o=document.createElement('option');o.value=i;o.textContent=t;sel.appendChild(o)});
+ syncTopic();
+}
+function syncTopic(){let v=topics[Number(document.getElementById('topicSelect').value)]||'';document.getElementById('customTopic').value=v}
+function addTopic(){
+ const t=document.getElementById('customTopic').value.trim();
+ if(!t){alert('追加するお題を入力してね');return}
+ if(!topics.includes(t)){topics.push(t);localStorage.setItem('nl_topics',JSON.stringify(topics));refreshTopics();document.getElementById('topicSelect').value=topics.length-1}
+ alert('お題を保存したよ！');
+}
+function startSetup(m){mode=m;refreshTopics();show('setup')}
+function beginGame(){
+ players=document.getElementById('names').value.split('\n').map(x=>x.trim()).filter(Boolean);
+ if(players.length<2){alert('2人以上の名前を入力してね');return}
+ if(new Set(players).size!==players.length){alert('プレイヤー名が重複しているよ');return}
+ currentTopic=document.getElementById('customTopic').value.trim();
+ if(!currentTopic){alert('お題を選ぶか入力してね');return}
+ numbers=Array.from({length:players.length},(_,i)=>i+1);
+ // Unique random values sampled from 1..100.
+ const pool=Array.from({length:100},(_,i)=>i+1);
+ for(let i=pool.length-1;i>0;i--){let j=Math.floor(Math.random()*(i+1));[pool[i],pool[j]]=[pool[j],pool[i]]}
+ numbers=pool.slice(0,players.length);
+ dealIndex=0;showDeal();
+}
+function showDeal(){
+ document.getElementById('dealProgress').textContent=`${dealIndex+1} / ${players.length} 人目`;
+ document.getElementById('dealName').textContent=players[dealIndex]+' さんの番';
+ document.getElementById('numberCover').classList.remove('hidden');
+ document.getElementById('numberShown').classList.add('hidden');
+ show('deal');
+}
+function revealNumber(){document.getElementById('privateNumber').textContent=numbers[dealIndex];document.getElementById('numberCover').classList.add('hidden');document.getElementById('numberShown').classList.remove('hidden')}
+function nextDeal(){dealIndex++;if(dealIndex<players.length){showDeal()}else{showAnswers()}}
+function showAnswers(){
+ document.getElementById('topicDisplay').textContent=currentTopic;
+ const wrap=document.getElementById('answerInputs');wrap.innerHTML='';
+ players.forEach((p,i)=>{
+  const div=document.createElement('div');div.className='card';
+  const label=document.createElement('label');label.textContent=p+' さんの回答';
+  const numberLine=document.createElement('div');numberLine.className='row';numberLine.style.alignItems='center';numberLine.style.margin='8px 0';
+  const numberText=document.createElement('span');numberText.className='muted';numberText.id='reviewNumber'+i;textContent='';
+  numberText.textContent='あなたの数字：非表示';
+  const revealButton=document.createElement('button');revealButton.type='button';revealButton.className='secondary';revealButton.textContent='数字を見返す';
+  let visible=false;
+  revealButton.onclick=()=>{
+   visible=!visible;
+   numberText.textContent=visible?'あなたの数字：'+numbers[i]:'あなたの数字：非表示';
+   revealButton.textContent=visible?'数字を隠す':'数字を見返す';
+  };
+  numberLine.append(numberText,revealButton);
+  const input=document.createElement('input');input.type='text';input.maxLength=100;input.placeholder='数字に合うと思う言葉';input.id='ans'+i;
+  div.append(label,numberLine,input);wrap.appendChild(div);
+ });
+ show('answer');
+}
+function submitAnswers(){
+ const answers=players.map((p,i)=>document.getElementById('ans'+i).value.trim());
+ if(answers.some(a=>!a)){alert('全員分の回答を入力してね');return}
+ const data=players.map((name,i)=>({name,number:numbers[i],answer:answers[i]})).sort((a,b)=>a.number-b.number);
+ document.getElementById('resultTopic').textContent=currentTopic;
+ const list=document.getElementById('results');list.innerHTML='';
+ data.forEach(d=>{
+  const row=document.createElement('div');row.className='answer-row';
+  const n=document.createElement('div');n.className='num';n.textContent=d.number;
+  const txt=document.createElement('div');const b=document.createElement('b');b.textContent=d.name;const p=document.createElement('div');p.textContent=d.answer;p.style.marginTop='4px';txt.append(b,p);row.append(n,txt);list.appendChild(row);
+ });
+ show('result');
+}
+refreshTopics();
+</script>
+</body>
+</html>
